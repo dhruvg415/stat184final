@@ -1,0 +1,215 @@
+---
+title: "Stat 184 Final Project"
+Names: "Adam Goldberg, Dhruv Gupta"
+output: html_notebook
+---
+
+**Setup**
+```{r}
+rm(list = ls()) #clear the workspace
+
+library(Stat2Data)
+library(tidyverse)
+library(mosaic)
+library(ggformula)
+library(car)
+library(leaps)
+library(tinytex)
+library(mosaic)
+library(ggformula)
+library(tidyverse)
+library(car)
+library(tinytex)
+```
+
+# The question we are researching is "Which statistic has the greatest impact on winning games in the MLB?"
+
+## Our primary dataset is the Teams table in Sean Lahman's Baseball Database, which is a downloadable CSV. We found the dataset by Googling sets that contained baseball data, and this page was the top hit. There are many different tables in the data package but Teams table had the most information relevant to our research question. The database was created by Sean Lahman in 1994, who wanted to make baseball statistics freely available to the general public. Although it started with just Lahman, it has grown tremendously and there is now a full team of researchers dedicated to collecting and maintaining the most accurate public source for baseball stats. In the Teams dataset, each case represents a single team from a specified season. There are 3,015 total cases in this data table, dating back to the 1871 season. The Teams dataset does not have a win percentage variable defined, so we mutated a variable by dividing wins in a season by the total games played. We evaluated the relationships between this new win percentage variables with team statistics such as runs scored, home runs, walks, ERA, strikeouts alowed, runs allowed, errors, stolen bases, batting average, and on base percentage. We calculated batting average by dividing the hits a team had in a season by the total amount of at-bats, and did the same for on base percentage, dividing Hits + walks bt the amount of at bats. 
+
+## The second dataset we used is called MLB Standings in 2016, and it comes from the Stat2Data package. Adam used it in one of his other classes and has already worked with this dataset, so we have some familiarity with the package. The dataset includes the batting statistics for each team from the 2016 MLB season. Unlike the primary source, it provides win percentage, batting average, and other offensive stats that were left out of the previous data table. This data set focuses on just one MLB season. We used variables that we found had the greatest impact on winpct from the prary data. There are 30 total cases, with a case being a particular team in the MLB and the variables are different metrics of their performance from that season. The data was collected and maintained by a large group of collaborators and sources that work on the BaseballReference webpage.
+
+## The third dataset we chose to evaluate contains the batting and pitching statistics from the 2023 MLB season. This is the most recent MLB season and it was not included in our primary data source, which only covered the years 1871 to 2022. This data came from www.baseballreference.com, which is collected and maintained by a large group of collaborators and sources that work on the BaseballReference webpage, just as it was for the secondary data source. There are 30 total cases, each representing one team in 2023, and there are 64 different variables available. 
+
+#### Primary data
+```{r}
+rawbaseball_data <- read_csv("/Users/dhruv/Downloads/baseballstats.csv") 
+calculateBA <- function(x,y){round((x/y), digits = 3)}
+calculateOBP <- function(x,y,z){round((x+z)/y, digits = 3)}
+#Filtering Raw data into data after 1973, Mutate WINPCT, BA, and OBP variables. 
+#Use transformation Functions for mutations
+baseballdata <- rawbaseball_data%>%
+  mutate(winpct = as.numeric(round(W/G, digits = 3)))%>%
+  mutate(BA = as.numeric(calculateBA(H,AB)))%>%
+  mutate(OBP = as.numeric(calculateOBP(H,AB,BB)))%>%
+  #mutate(OBP = as.numeric((H+BB)/AB))%>%
+  filter(yearID > 1973)
+
+#Filter National league data for 2021 and 2022, mutating the same 3 variables as in baseballdata
+#Use transormation Functions for mutations
+NLbaseballdata2122 <- rawbaseball_data%>%
+  mutate(winpct = as.numeric(W/G))%>%
+  mutate(BA = as.numeric(calculateBA(H,AB)))%>%
+  mutate(OBP = as.numeric((calculateOBP(H,AB,BB))))%>%
+  filter(yearID >= 2021, lgID == "NL")
+
+#display head of each data frame
+head(rawbaseball_data)
+head(baseballdata)
+head(NLbaseballdata2122)
+
+
+
+
+model <- (baseballdata$winpct ~ baseballdata$BA + baseballdata$ERA)
+summary(model)
+```
+
+#### Secondary Data 
+```{r}
+#load package with dataset
+library(Stat2Data)
+
+data2 <- data("MLBStandings2016")
+
+gf_point(OBP~ WinPct, data = MLBStandings2016) %>% gf_lm()
+gf_point(BattingAverage~ WinPct, data = MLBStandings2016) %>% gf_lm()
+gf_point(ERA~ WinPct, data = MLBStandings2016) %>% gf_lm()
+
+#mutate 
+#MLBStandings2016 %>%
+  #mutate(rank = rank(desc(count())))
+
+head(MLBStandings2016)
+```
+
+## Third data source
+```{r}
+batter_data2023 <- read_csv("/Users/dhruv/Downloads/2023batting.csv")
+pitcher_data2023 <- read_csv("/Users/dhruv/Downloads/2023pitching.csv")
+
+baseballdata2023 <- full_join(x = batter_data2023, y = pitcher_data2023, by = "Tm")
+
+head(baseballdata2023)
+```
+
+### The first thing we did was take a look at the relationship bewteen different statistics and win percentage in the MLB from the years 1973 to 2022. We used the statistics: Runs, HomeRuns, Walks, Strikeouts Allowed, Errors, Stolen bases, ERA, Batting Average, and On Base Percentage. 
+
+```{r}
+#Winpct vs Runs
+gf_point(R ~ winpct, data = baseballdata) %>% gf_lm() + labs(title= "WinPCT vs Runs")
+Runmdl <- lm(R~winpct, data = baseballdata)
+summary(Runmdl)
+
+#Winpct vs Home Runs
+gf_point(HR ~ winpct, data = baseballdata) %>% gf_lm() + labs(title= "WinPCT vs HomeRuns")
+HRmdl <- lm(HR ~ winpct, data = baseballdata)
+summary(HRmdl)
+
+#Winpct vs Walks
+gf_point(BB ~ winpct, data = baseballdata) %>% gf_lm() + labs(title= "WinPCT vs Walks")
+BBmdl <- lm(BB~ winpct, data = baseballdata)
+summary(BBmdl)
+
+#Winpct vs Strike Outs Allowed
+gf_point(SOA~ winpct, data = baseballdata) %>% gf_lm() + labs(title= "WinPCT vs StrikeoutsAllowed")
+SOAmdl <- lm(SOA~ winpct, data = baseballdata)
+summary(SOAmdl)
+
+#Winpct vs Errors
+gf_point(E~ winpct, data = baseballdata) %>% gf_lm() + labs(title= "WinPCT vs Errors")
+Emdl <- lm(E~ winpct, data = baseballdata)
+summary(Emdl)
+
+#Winpct vs Stolen Bases
+gf_point(SB~ winpct, data = baseballdata) %>% gf_lm() + labs(title= "WinPCT vs Stolen Bases")
+SBmdl <- lm(SB~ winpct, data = baseballdata)
+summary(SBmdl)
+
+#Winpct vs Earned Run Average
+gf_point(ERA~ winpct, data = baseballdata) %>% gf_lm() + labs(title= "WinPCT vs ERA")
+ERAmdl <- lm(ERA~ winpct, data = baseballdata)
+summary(ERAmdl)
+
+#Winpct vs Batting Average
+gf_point(BA~ winpct, data = baseballdata) %>% gf_lm() + labs(title= "WinPCT vs Batting AVG")
+BAmdl <- lm(BA~ winpct, data = baseballdata)
+summary(BAmdl)
+
+#Winpct vs On Base Percentage
+gf_point(OBP~ winpct, data = baseballdata) + geom_lm() + labs(title= "WinPCT vs On Base PCT")
+OBPmdl <- lm(OBP~ winpct, data = baseballdata)
+summary(OBPmdl)
+```
+
+### Looking at each graph, we can evaluate the relationships between each variable individually with win percentage. Doing so, we can conclude that ERA, Batting Average, and On Base Percentage have had the strongest relationship with Win Percentage since 1973 based on the stats we chose to evaluate.
+
+### Since there has recently been a rule change in the MLB, adding a designated hitter to the National League as of 2022, we decided to compare the impact of Batting average and ERA on win percentage for these National League teams in both the 2021 and 2022 season. 
+
+```{r}
+# 2021 National League Data
+NLbaseball2021 <- NLbaseballdata2122%>%
+  filter(yearID == 2021)
+
+# 2022 National League Data
+NLbaseball2022 <- NLbaseballdata2122%>%
+  filter(yearID == 2022)
+
+# Batting average vs winpct in 2021 and 2022
+ggplot(NLbaseballdata2122, aes(x = BA, y = winpct, color = teamID)) + geom_smooth(se = F, color = "grey") + geom_point() + facet_grid(yearID ~ .) + labs( title = "NL Win Percentage vs Batting Average in 2021 and 2022")
+
+# On base pct vs winpct in 2021 and 2022
+ggplot(NLbaseballdata2122, aes(x = OBP, y = winpct, color = teamID)) + geom_smooth(se = F, color = "grey") + geom_point() + facet_grid(yearID ~ .) + labs( title = "NL Win Percentage vs On base percentage in 2021 and 2022")
+
+
+# ERA vs winpct in 2021 and 2022
+ggplot(NLbaseballdata2122, aes(x = ERA, y = winpct, color = teamID)) + geom_point() + geom_smooth(se = F, color = "grey") + facet_grid(yearID ~ .) + labs( title = "NL Win Percentage vs ERA in 2021 and 2022")
+
+
+#WinPCT. by team in 2021 and 2022
+NLbaseballdata2122 %>%
+  ggplot(aes(x = teamID, y = winpct, color = teamID)) +
+  geom_point() +  # Use points to represent the data
+  facet_wrap(~yearID, scales = "free") +
+  labs(title = "National League Winpct in 2021 and 2022")
+
+```
+### Looking at these plots, we can conclude that with the rule change going into the 2022 season, batting average  and OBP had a stronger relationship to win percentage than it had in 2021, while the relationship between winpct and ERA remained nearly the same. 
+
+
+## With our secondary data source, we take a deeper dive into an indivdual MLB season as opposed to looking at the statistics for years of baseball. Since we were able to conclude that ERA, Batting Average, and On base Percentage had the greatest impact on Win percentage from our primary source, we decided to take a look at how these statistics impacted the win percentages in one individual season. 
+
+```{r}
+gf_point(OBP~ WinPct, data = MLBStandings2016) %>% gf_lm() + labs(title = "WinPct vs OBP in 2016")
+gf_point(BattingAverage~ WinPct, data = MLBStandings2016) %>% gf_lm() + labs(title = "WinPct vs BA in 2016")
+gf_point(ERA~ WinPct, data = MLBStandings2016) %>% gf_lm() + labs(title = "WinPct vs ERA in 2016")
+```
+### From these graphs, we can see that On base percentage and ERA had a stronger relationship with Win Percentage in the 2016 season than Batting Average did. 
+
+
+
+## Our third data source takes a look into this past MLB season's team batting and pitching statistics. Through our anaslysis of our first 2 sources, we were able to conclude that Batting Average, On Base Pct, and ERA have the greatest bearing on winpct of all of the other staistics that we chose to observe, so we decided to evaluate these 3 statistics' impact on winning in the most recent MLB season. 
+
+```{r}
+ggplot(baseballdata2023, aes(x = BA, y = `W-L%`, color = Tm)) + geom_point() + geom_smooth(se = F, color = "grey") + labs( title = "MLB Win Percentage vs BA in 2023")
+
+ggplot(baseballdata2023, aes(x = OBP, y = `W-L%`, color = Tm)) + geom_point() + geom_smooth(se = F, color = "grey") + labs( title = "MLB Win Percentage vs OBP in 2023")
+
+ggplot(baseballdata2023, aes(x = ERA, y = `W-L%`, color = Tm)) + geom_point() + geom_smooth(se = F, color = "grey") + labs( title = "MLB Win Percentage vs ERA in 2023")
+
+```
+## When visualized, the data tends to be consistent with the conclusions we were able to come to earlier. All three of the chosen statistcs appear to have strong relationships with win percentage, with OBP having the greatest magnitude. OBP and BA both have significant positive relationships with winpct, while ERA has a strong negative relationship. 
+
+
+## The biggest challenge we ran into during this project was figuring out how we were goung to include all of the necessary elements from the Final Check Sheet. We had already completed our Final Presentation, but had used a lot of similar graphics and simple data wrangling techniques, so we had to adjust and spend some time to include more of the elements that were on the check sheet. Prior to this challenge, we had been working pretty smoothly, with our biggest issue being figuring out how we were going to mutate the statistics we wanted to be included that were not in our chosen datasets. We researched how these MLB stats, Batting Average and OBP, are calculated and use the neccessary information to create user-defined functions, which we were able to use to calculate and mutate these stats into our data tables. 
+
+
+# Final Conclusions
+
+## Our research question that we decided to do our project on is ""Which statistic has the greatest impact on winning games in the MLB?" Our primary data source included all of te MLB data from 1871 to 2022, so we filtered it from 1973, when the designated hitter was added to the game. We originally chose 9 baseball stats that we believed would have the greatest impact on winning games and evaluated their relationships individually when looking at a team's individual season win percentage. 7 of these statistics came directly from our primary data source, while we had to calculate the other 2 ourselves. Evaluating these relationships, it was evident that the statistics with the greatest slope (relationship) vs WinPCT were Batting Average, On Base Percentage, and ERA. 
+
+## After coming to this conclusion, we filtered our data into the 2021 and 2022 seasons individually with only National League teams, as 2022 is the first season the designated hitter was added for the National League. We chose to evalusate the 3 statistics that we determined had the greatest relationship with win percentage through MLB history, which were Batting Avg, On base Pct, and ERA. We compared how these 3 stats impacted win percentage in 2021 and 2022. We were able to come to the conclusion that in the 2022 season the Batting average and On base percentage had a stronger positive relationship with winpct, while ERA's relationship with winning remained fairly constant. 
+
+## Our secondary data source took a look at the 2016 MLB season. Through our determination that BA, OBP, and ERA had the strongest relationships with win percentage, we decided to evaluate how these 3 stats would impact an individual season, as opposed to years of baseball data. We were able to conclude that On base percentage and ERA had a stronger relationship with Win Percentage in the 2016 season than Batting Average did.
+
+## Our third data source, like our second, took a look at an individual season. This data set includes all of the team batting and pitching statistics in the most recent MLB season. Just as we did for 2016, we evaluated how Batting average, On base percentage, and ERA impacted win percentage for the season. On base percentage appears to have the strongest relationship with win percentage in 2023, while ERA appears to have a slightly weaker relationship than in our other evaluations. 
+
